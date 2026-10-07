@@ -30,7 +30,11 @@ export default function ProductForm({ produto: p, estab, posicao, progresso, pri
   const padrao = unidadePadrao(p)
   const unidadeId = e.unidade || padrao.id
 
-  useEffect(() => { precoRef.current?.focus({ preventScroll: true }) }, [])
+  // Volta ao topo e foca o preço rolando até ele; este efeito roda antes do da página, então a rolagem não pode ficar lá
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+    precoRef.current?.focus()
+  }, [])
   useEffect(() => { if (obsAberta && focarObs.current) obsRef.current?.focus() }, [obsAberta])
 
   // Abre o campo; com o campo aberto e vazio, esconde de novo; com texto, só leva o cursor até ele
@@ -78,7 +82,7 @@ export default function ProductForm({ produto: p, estab, posicao, progresso, pri
               <input ref={precoRef} size={1} inputMode="numeric" placeholder="0,00" value={exibirPreco(e.preco)} disabled={e.naoEncontrado}
                 enterKeyHint="next" onChange={(ev) => onChange({ preco: mascaraPreco(ev.target.value) })}
                 onKeyDown={enter(() => qtdRef.current?.focus())}
-                className="w-full min-w-0 flex-1 border-0 bg-transparent py-2.5 pr-3 pl-2 text-[1.4rem] font-bold tabular-nums focus:outline-none disabled:text-[#A3AEB2]" />
+                className="scroll-my-28 w-full min-w-0 flex-1 border-0 bg-transparent py-2.5 pr-3 pl-2 text-[1.4rem] font-bold tabular-nums focus:outline-none disabled:text-[#A3AEB2]" />
             </div>
           </Field>
 
