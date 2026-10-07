@@ -1,7 +1,7 @@
 // Campo com rótulo e dica opcional. Quem usa passa o controle (input, grupo de botões...) como filho.
 export default function Field({ label, dica, as: Tag = 'label', children }) {
   return (
-    <Tag className="grid min-w-0 gap-1.5">
+    <Tag className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
       <span className="text-sm text-suave">{label}</span>
       {children}
       {dica && <small className="text-xs text-suave">{dica}</small>}

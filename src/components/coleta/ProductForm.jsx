@@ -72,13 +72,13 @@ export default function ProductForm({ produto: p, estab, posicao, progresso, pri
 
         <div className="grid grid-cols-1 gap-3.5 pt-4">
           <Field label="Preço">
-            <div className={`flex items-center rounded-xl border-[1.5px] border-linha pl-3 focus-within:border-tinta ${
+            <div className={`flex w-full min-w-0 items-center rounded-xl border-[1.5px] border-linha pl-3 focus-within:border-tinta ${
               e.naoEncontrado ? 'bg-fundo' : 'bg-white'}`}>
-              <em className="font-semibold text-suave not-italic">R$</em>
-              <input ref={precoRef} inputMode="numeric" placeholder="0,00" value={exibirPreco(e.preco)} disabled={e.naoEncontrado}
+              <em className="flex-none font-semibold text-suave not-italic">R$</em>
+              <input ref={precoRef} size={1} inputMode="numeric" placeholder="0,00" value={exibirPreco(e.preco)} disabled={e.naoEncontrado}
                 enterKeyHint="next" onChange={(ev) => onChange({ preco: mascaraPreco(ev.target.value) })}
                 onKeyDown={enter(() => qtdRef.current?.focus())}
-                className="min-w-0 flex-1 border-0 bg-transparent py-2.5 pr-3 pl-2 text-[1.4rem] font-bold tabular-nums focus:outline-none disabled:text-[#A3AEB2]" />
+                className="w-full min-w-0 flex-1 border-0 bg-transparent py-2.5 pr-3 pl-2 text-[1.4rem] font-bold tabular-nums focus:outline-none disabled:text-[#A3AEB2]" />
             </div>
           </Field>
 
