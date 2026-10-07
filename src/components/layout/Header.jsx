@@ -8,7 +8,7 @@ const botao = 'inline-flex items-center gap-1.5 rounded-lg bg-white/12 px-3 py-[
 
 export default function Header() {
   const { pathname } = useLocation()
-  const mostrarEstabs = pathname !== '/ajustes'
+  const mostrarEstabs = pathname !== '/ajustes' && pathname !== '/produtos'
 
   return (
     <header className="sticky top-0 z-10 bg-tinta px-4 pt-[calc(12px+env(safe-area-inset-top))] pb-3 text-white">

@@ -8,6 +8,7 @@ App para coletar preços da tabela do Projeto Custo de Vida no celular, funciona
 - A tela inicial é a **lista de produtos** do estabelecimento escolhido, por seção, com o preço de cada um. Toque em **Iniciar** para entrar no modo de coleta (abre no primeiro produto sem resposta) ou toque direto num produto para coletá-lo. O botão **Lista**, no topo, volta para cá.
 - O app mostra **um produto por vez**. Preencha **Preço**, **Quantidade** e **Marca** (a marca é opcional) e toque em **Próximo** (ou use Enter: Preço → Quantidade → Marca → próximo produto).
 - Logo abaixo do nome do produto, uma caixa pequena mostra o que já foi anotado nos **outros estabelecimentos** (marca, embalagem e preço) para comparar.
+- **Produtos adicionais**: em **Adicionar ou editar produtos** (no fim da lista) ou em Ajustes → **Produtos adicionais**, dá para cadastrar produtos que não estão na tabela: nome, seção e embalagem de referência (ex.: 500 g, 1 L, 1 dúzia). Eles entram na coleta como os demais (marcados como "Adicional") e podem ser editados ou removidos; remover apaga também os preços anotados neles. Os 62 produtos da tabela UCE são fixos. Nas exportações, os adicionais vêm **depois do total da cesta** e não entram nas somas, já que a cesta é só a lista da UCE.
 - **Seções**: use os botões abaixo das abas, na lista ou na coleta, para ver e percorrer só uma seção (Limpeza, Higiene, Carnes, Padaria, Biscoitos e doces, Hortifruti, Mercearia, Óleos e molhos, Leite/ovos/bebidas) ou **Todas**, seção por seção. Ao terminar uma seção, o app oferece ir para a próxima.
 - **Quantidade** em branco significa que a embalagem é a da tabela. Se for diferente, digite a quantidade e escolha a unidade (g/kg, ml/L, unid/dúzia). O app calcula:
   `preço convertido = preço encontrado × qtd padrão ÷ qtd encontrada`
@@ -59,17 +60,17 @@ Stack: React, Vite, Tailwind CSS 4, React Router (HashRouter, funciona no GitHub
 src/
   main.jsx            entrada: providers + RouterProvider
   index.css           Tailwind e cores do tema
-  routes/             definição das rotas (/ lista, /coleta, /fim, /ajustes)
-  pages/              uma por rota: ListaPage, ColetaPage, FimPage, AjustesPage
+  routes/             definição das rotas (/ lista, /coleta, /fim, /ajustes, /produtos)
+  pages/              uma por rota: ListaPage, ColetaPage, FimPage, AjustesPage, ProdutosPage
   components/
     layout/           AppLayout, Header, EstabTabs, ColetaLayout
     coleta/           ProductForm, CompareBox, SectionChips
     ui/               Button, Field, PriceTag
-  stores/             zustand: useColetaStore (preços, salvo no aparelho) e useNavStore (onde parou)
+  stores/             zustand: useColetaStore (preços e produtos adicionais, salvo no aparelho), useNavStore (onde parou) e catalogo (produtos da tabela + adicionais)
   contexts/           ConnectivityContext (aviso offline), UpdateContext (nova versão) e ConfirmContext (diálogo de confirmação)
   hooks/              useColetaNav (posição e movimento entre produtos), useProgresso, useExportar
   data/products.js    lista dos 62 produtos, quantidades padrão e seções
-  utils/              calc (regra de 3), csv, xlsx, download, escopo, estabs, migrate, text
+  utils/              calc (regra de 3), catalogo, csv, xlsx, download, escopo, estabs, migrate, text
 docs/                 modelo UCE_Custo_de_Vida.xlsx usado na exportação (troque o arquivo para mudar o modelo)
 plugins/             offlineServiceWorker.js: gera o service worker no build
 scripts/             gerar-icones.sh: gera os PNGs dos ícones a partir do SVG

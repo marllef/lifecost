@@ -1,13 +1,15 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate'
 import modeloUrl from '../../docs/UCE_Custo_de_Vida.xlsx?url'
 import { PRODUCTS, SECTIONS } from '../data/products.js'
+import { catalogoDe } from './catalogo.js'
 import { brl, compute, qtdBase, qtdTexto, temQtd } from './calc.js'
 import { baixar, carimbo } from './download.js'
 
 // Gera a planilha a partir de docs/UCE_Custo_de_Vida.xlsx. Estilos, fórmulas, formatação condicional, validações,
 // painéis congelados e a aba Instruções são os do modelo. O modelo tem 4 estabelecimentos; a aba Coleta é
 // remontada com um bloco de 3 colunas (preço encontrado, qtd encontrada, preço convertido) para cada um que existir,
-// e as colunas de resumo vêm logo depois do último bloco.
+// e as colunas de resumo vêm logo depois do último bloco. Os produtos adicionais (cadastrados no app) entram em linhas
+// abaixo do total da cesta, com o mesmo formato, e não participam das somas.
 
 const PRIMEIRA_LINHA = 6
 const ULTIMA_LINHA = PRIMEIRA_LINHA + PRODUCTS.length - 1
@@ -78,13 +80,12 @@ function montarColeta(xml, state) {
   c5 += [['Média', cMedia], ['Menor', cMenor], ['Maior', cMaior], ['Nº de preços', cQtd]].map(([t, c]) => inline(`${c}5`, ESTILO.sub, t)).join('')
   linhas.push(`${l4.abertura}${c4}</row>`, `${l5.abertura}${c5}</row>`)
 
-  // Produtos
+  // Colunas de um produto na linha r: um bloco por estabelecimento e o resumo.
+  // `somar` diz se os valores entram no total da cesta (só os produtos da tabela).
   const totais = blocos.map(() => 0)
   const soma = { media: 0, menor: 0, maior: 0 }
-  PRODUCTS.forEach((p, i) => {
-    const r = PRIMEIRA_LINHA + i
-    const modelo = linhaDoModelo(xml, r)
-    let cels = modelo.fixas
+  const celulasProduto = (p, r, somar) => {
+    let cels = ''
     const convertidos = []
     blocos.forEach((b, e) => {
       const entry = state.dados[e]?.[p.id]
@@ -95,19 +96,26 @@ function montarColeta(xml, state) {
       cels += ok && temQtd(entry) ? comNumero(`${b.qtd}${r}`, ESTILO.qtd, qtdBase(p, entry)) : vazia(`${b.qtd}${r}`, ESTILO.qtd)
       cels += formula(`${b.conv}${r}`, ESTILO.conv,
         `IF(${b.preco}${r}="","",${b.preco}${r}*$D${r}/IF(${b.qtd}${r}="",$D${r},${b.qtd}${r}))`, ok ? calc.convertido : null)
-      if (ok) { convertidos.push(calc.convertido); totais[e] += calc.convertido }
+      if (ok) { convertidos.push(calc.convertido); if (somar) totais[e] += calc.convertido }
     })
     const lista = blocos.map((b) => `${b.conv}${r}`).join(',')
     const media = convertidos.length ? convertidos.reduce((a, b) => a + b, 0) / convertidos.length : null
     const menor = convertidos.length ? Math.min(...convertidos) : null
     const maior = convertidos.length ? Math.max(...convertidos) : null
-    if (media != null) { soma.media += media; soma.menor += menor; soma.maior += maior }
+    if (somar && media != null) { soma.media += media; soma.menor += menor; soma.maior += maior }
     const vazioSe = (fn) => `IF(COUNT(${lista})=0,"",${fn}(${lista}))`
-    cels += formula(`${cMedia}${r}`, ESTILO.resumo, vazioSe('AVERAGE'), media)
+    return cels
+      + formula(`${cMedia}${r}`, ESTILO.resumo, vazioSe('AVERAGE'), media)
       + formula(`${cMenor}${r}`, ESTILO.resumo, vazioSe('MIN'), menor)
       + formula(`${cMaior}${r}`, ESTILO.resumo, vazioSe('MAX'), maior)
       + formula(`${cQtd}${r}`, ESTILO.contagem, `COUNT(${lista})`, convertidos.length)
-    linhas.push(`${modelo.abertura}${cels}</row>`)
+  }
+
+  // Produtos da tabela
+  PRODUCTS.forEach((p, i) => {
+    const r = PRIMEIRA_LINHA + i
+    const modelo = linhaDoModelo(xml, r)
+    linhas.push(`${modelo.abertura}${modelo.fixas}${celulasProduto(p, r, true)}</row>`)
   })
 
   // Total da cesta
@@ -120,12 +128,34 @@ function montarColeta(xml, state) {
   ct += soma_(cMedia, soma.media) + soma_(cMenor, soma.menor) + soma_(cMaior, soma.maior) + vazia(`${cQtd}${LINHA_TOTAL}`, ESTILO.totalVazio)
   linhas.push(`${tot.abertura}${ct}</row>`)
 
+  // Produtos adicionais: um título e as linhas, abaixo do total
+  const adicionais = catalogoDe(state.custom).adicionais
+  const LINHA_TITULO_EXTRA = LINHA_TOTAL + 1
+  const PRIMEIRA_EXTRA = LINHA_TITULO_EXTRA + 1
+  const ULTIMA_EXTRA = LINHA_TITULO_EXTRA + adicionais.length
+  if (adicionais.length) {
+    linhas.push(`<row r="${LINHA_TITULO_EXTRA}">${inline(`A${LINHA_TITULO_EXTRA}`, ESTILO.sub, 'Produtos adicionais (não entram no total da cesta)')}`
+      + ['B', 'C', 'D', 'E'].map((c) => vazia(`${c}${LINHA_TITULO_EXTRA}`, ESTILO.sub)).join('') + '</row>')
+    adicionais.forEach((p, i) => {
+      const r = PRIMEIRA_EXTRA + i
+      const fixas = comNumero(`A${r}`, ESTILO.tabela, PRODUCTS.length + i + 1) + inline(`B${r}`, ESTILO.texto, p.nome)
+        + inline(`C${r}`, ESTILO.tabela, p.label) + comNumero(`D${r}`, ESTILO.tabela, p.qtd) + inline(`E${r}`, ESTILO.tabela, p.base)
+      linhas.push(`<row r="${r}">${fixas}${celulasProduto(p, r, false)}</row>`)
+    })
+  }
+  const ultimaLinha = adicionais.length ? ULTIMA_EXTRA : LINHA_TOTAL
+  // Intervalos dos produtos (os da tabela e, se houver, os adicionais), sem o total no meio
+  const intervalo = (de, ate) => {
+    const faixa = (l1, l2) => `${de}${l1}:${ate}${l2}`
+    return adicionais.length ? `${faixa(PRIMEIRA_LINHA, ULTIMA_LINHA)} ${faixa(PRIMEIRA_EXTRA, ULTIMA_EXTRA)}` : faixa(PRIMEIRA_LINHA, ULTIMA_LINHA)
+  }
+
   // Mesclagens, formatação condicional (laranja quando a embalagem difere da tabela) e validação numérica
   const mesclas = ['A', 'B', 'C', 'D', 'E'].map((c) => `<mergeCell ref="${c}4:${c}5"/>`)
-    .concat(blocos.map((b) => `<mergeCell ref="${b.preco}4:${b.conv}4"/>`), `<mergeCell ref="${cMedia}4:${cQtd}4"/>`, `<mergeCell ref="A${LINHA_TOTAL}:E${LINHA_TOTAL}"/>`)
+    .concat(blocos.map((b) => `<mergeCell ref="${b.preco}4:${b.conv}4"/>`), `<mergeCell ref="${cMedia}4:${cQtd}4"/>`, `<mergeCell ref="A${LINHA_TOTAL}:E${LINHA_TOTAL}"/>`, ...(adicionais.length ? [`<mergeCell ref="A${LINHA_TITULO_EXTRA}:E${LINHA_TITULO_EXTRA}"/>`] : []))
   const condicionais = blocos.map((b, e) =>
-    `<conditionalFormatting sqref="${b.conv}${PRIMEIRA_LINHA}:${b.conv}${ULTIMA_LINHA}"><cfRule type="expression" priority="${e + 2}" aboveAverage="0" equalAverage="0" bottom="0" percent="0" rank="0" text="" dxfId="0"><formula>AND($${b.preco}${PRIMEIRA_LINHA}&lt;&gt;&quot;&quot;,${b.qtd}${PRIMEIRA_LINHA}&lt;&gt;&quot;&quot;,${b.qtd}${PRIMEIRA_LINHA}&lt;&gt;$D${PRIMEIRA_LINHA})</formula></cfRule></conditionalFormatting>`).join('')
-  const intervalos = blocos.map((b) => `${b.preco}${PRIMEIRA_LINHA}:${b.qtd}${ULTIMA_LINHA}`).join(' ')
+    `<conditionalFormatting sqref="${intervalo(b.conv, b.conv)}"><cfRule type="expression" priority="${e + 2}" aboveAverage="0" equalAverage="0" bottom="0" percent="0" rank="0" text="" dxfId="0"><formula>AND($${b.preco}${PRIMEIRA_LINHA}&lt;&gt;&quot;&quot;,${b.qtd}${PRIMEIRA_LINHA}&lt;&gt;&quot;&quot;,${b.qtd}${PRIMEIRA_LINHA}&lt;&gt;$D${PRIMEIRA_LINHA})</formula></cfRule></conditionalFormatting>`).join('')
+  const intervalos = blocos.map((b) => intervalo(b.preco, b.qtd)).join(' ')
   const validacao = `<dataValidations count="1"><dataValidation allowBlank="false" error="Digite um número maior que zero." errorStyle="stop" errorTitle="Valor inválido" operator="greaterThan" showDropDown="false" showErrorMessage="true" showInputMessage="false" sqref="${intervalos}" type="decimal"><formula1>0</formula1><formula2>0</formula2></dataValidation></dataValidations>`
 
   const larguras = [5, 26, 13, 10, 8]
@@ -133,7 +163,7 @@ function montarColeta(xml, state) {
     + `<col min="${COLUNAS_FIXAS + 1}" max="${COLUNAS_FIXAS + 3 * n + 4}" width="12.5" customWidth="true" style="0"/>`
 
   return xml
-    .replace(/<dimension[^>]*\/>/, `<dimension ref="A1:${ultima}${LINHA_TOTAL}"/>`)
+    .replace(/<dimension[^>]*\/>/, `<dimension ref="A1:${ultima}${ultimaLinha}"/>`)
     .replace(/<cols>[\s\S]*?<\/cols>/, `<cols>${cols}</cols>`)
     .replace(/<sheetData>[\s\S]*?<\/sheetData>/, `<sheetData>${linhas.join('')}</sheetData>`)
     .replace(/<mergeCells[\s\S]*?<\/mergeCells>/, `<mergeCells count="${mesclas.length}">${mesclas.join('')}</mergeCells>`)
@@ -143,6 +173,7 @@ function montarColeta(xml, state) {
 
 // Aba extra: o modelo não tem onde guardar marca, observação, "não encontrado" e quantidade inválida
 function abaExtra(state) {
+  const { produtos } = catalogoDe(state.custom)
   const linhaXml = (n, celulas, extra = '') =>
     `<row r="${n}"${extra}>${celulas.map(([estilo, texto], i) =>
       (texto === '' || texto == null ? vazia(`${letra(i + 1)}${n}`, estilo) : inline(`${letra(i + 1)}${n}`, estilo, texto))).join('')}</row>`
@@ -151,8 +182,8 @@ function abaExtra(state) {
   state.estabs.forEach((nome) => cab.push([ESTILO.titulo, `${nome} - Marca`], [ESTILO.titulo, `${nome} - Embalagem encontrada`], [ESTILO.titulo, `${nome} - Situação`], [ESTILO.titulo, `${nome} - Observação`]))
   const linhas = [linhaXml(1, cab, ' ht="45" customHeight="1"')]
 
-  PRODUCTS.forEach((p, i) => {
-    const cels = [[ESTILO.tabela, String(p.id)], [ESTILO.texto, p.nome], [ESTILO.texto, nomeSecao[p.secao]]]
+  produtos.forEach((p, i) => {
+    const cels = [[ESTILO.tabela, String(i + 1)], [ESTILO.texto, p.nome], [ESTILO.texto, p.adicional ? `${nomeSecao[p.secao]} (adicional)` : nomeSecao[p.secao]]]
     state.estabs.forEach((_, e) => {
       const entry = state.dados[e]?.[p.id]
       const r = compute(p, entry)
@@ -170,7 +201,7 @@ function abaExtra(state) {
   const larguras = [5, 26, 20, ...state.estabs.flatMap(() => [16, 20, 30, 34])]
   const cols = larguras.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${letra(larguras.length)}${PRODUCTS.length + 1}"/><sheetViews><sheetView workbookViewId="0"><pane xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${linhas.join('')}</sheetData></worksheet>`
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${letra(larguras.length)}${produtos.length + 1}"/><sheetViews><sheetView workbookViewId="0"><pane xSplit="3" ySplit="1" topLeftCell="D2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><cols>${cols}</cols><sheetData>${linhas.join('')}</sheetData></worksheet>`
 }
 
 export async function buildXlsx(state) {

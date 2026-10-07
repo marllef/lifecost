@@ -55,6 +55,9 @@ if (secaoDe.size !== PRODUCTS.length || PRODUCTS.some((p) => !p.secao)) {
   throw new Error('As seções precisam conter exatamente os produtos da lista.')
 }
 
+// Os produtos da tabela vão de 1 a 62; os que a pessoa cadastra recebem ids acima deste valor
+export const ID_ADICIONAL = 1000
+
 export const BY_ID = new Map(PRODUCTS.map((p) => [p.id, p]))
 
 // Produtos na ordem de coleta: seção por seção, mantendo a ordem da lista dentro de cada uma
@@ -72,7 +75,7 @@ export const unidadesDe = (p) => UNITS[p.base].filter((u) => u.id !== 'duzia' ||
 
 // Unidade e valor da embalagem padrão como aparecem na tabela (1 kg, 1 L, 1 dúzia, 500 ml...)
 export function unidadePadrao(p) {
-  if (p.base === 'unid') return p.label.includes('dúzia') ? { id: 'duzia', valor: 1 } : { id: 'unid', valor: p.qtd }
+  if (p.base === 'unid') return p.label.includes('dúzia') ? { id: 'duzia', valor: p.qtd / 12 } : { id: 'unid', valor: p.qtd }
   if (p.qtd >= 1000) return { id: p.base === 'g' ? 'kg' : 'L', valor: p.qtd / 1000 }
   return { id: p.base, valor: p.qtd }
 }

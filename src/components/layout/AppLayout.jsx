@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom'
 import { FiWifiOff } from 'react-icons/fi'
 import { useConnectivity } from '../../contexts/ConnectivityContext.jsx'
 import Header from './Header.jsx'
+import InstallDialog from './InstallDialog.jsx'
 import UpdateBanner from './UpdateBanner.jsx'
 
 export default function AppLayout() {
@@ -19,6 +20,7 @@ export default function AppLayout() {
       <main className="flex flex-1 flex-col">
         <Outlet />
       </main>
+      <InstallDialog />
     </div>
   )
 }

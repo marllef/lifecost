@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { SECTIONS } from '../data/products.js'
 import { escopoDe } from '../utils/escopo.js'
+import { useCatalogo } from '../stores/catalogo.js'
 import { useColetaStore } from '../stores/useColetaStore.js'
 import { useNavStore } from '../stores/useNavStore.js'
 
@@ -15,7 +16,8 @@ export function useColetaNav() {
   const pid = useNavStore((s) => s.pid)
   const { setPid, trocarEstab, trocarSecao, revisarPendentes, abrirProduto } = useNavStore.getState()
 
-  const escopo = useMemo(() => escopoDe(secao), [secao])
+  const { ordered } = useCatalogo()
+  const escopo = useMemo(() => escopoDe(secao, ordered), [secao, ordered])
   const idx = Math.max(0, escopo.findIndex((p) => p.id === pid))
   const produto = escopo[idx]
   const secaoAtual = SECTIONS.find((s) => s.id === produto.secao)

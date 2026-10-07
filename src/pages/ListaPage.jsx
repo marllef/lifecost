@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { FiPlay, FiSearch } from 'react-icons/fi'
-import { ORDERED, SECTIONS } from '../data/products.js'
+import { Link } from 'react-router-dom'
+import { FiPackage, FiPlay, FiSearch } from 'react-icons/fi'
+import { SECTIONS } from '../data/products.js'
 import { useColetaNav } from '../hooks/useColetaNav.js'
+import { useCatalogo } from '../stores/catalogo.js'
 import { useColetaStore } from '../stores/useColetaStore.js'
 import Button from '../components/ui/Button.jsx'
 import PriceTag from '../components/ui/PriceTag.jsx'
@@ -13,6 +15,7 @@ import { nomeCurto, norm } from '../utils/text.js'
 // "Iniciar" abre a coleta no primeiro produto pendente; tocar num produto abre a coleta nele.
 export default function ListaPage() {
   const { estab, secao, abrirProduto, iniciar } = useColetaNav()
+  const { ordered } = useCatalogo()
   const nome = useColetaStore((s) => s.estabs[estab])
   const dados = useColetaStore((s) => s.dados[estab])
   const [busca, setBusca] = useState('')
@@ -30,7 +33,7 @@ export default function ListaPage() {
         </label>
 
         {secoes.map((s) => {
-          const itens = ORDERED.filter((p) => p.secao === s.id && (!q || norm(p.nome).includes(q)))
+          const itens = ordered.filter((p) => p.secao === s.id && (!q || norm(p.nome).includes(q)))
           if (!itens.length) return null
           return (
             <section key={s.id}>
@@ -41,7 +44,7 @@ export default function ListaPage() {
                     <button onClick={() => abrirProduto(p)}
                       className="flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 border-0 bg-transparent px-0.5 py-2.5 text-left">
                       <span className="flex min-w-0 flex-col">
-                        <span className="font-semibold">{p.nome}</span>
+                        <span className="font-semibold">{p.nome}{p.adicional && <small className="ml-1.5 rounded bg-fundo px-1.5 py-0.5 align-middle text-[.65rem] font-bold tracking-wide text-suave uppercase">Adicional</small>}</span>
                         <span className="truncate text-[.8rem] text-suave">
                           {p.label}
                           {dados[p.id]?.marca?.trim() && !dados[p.id].naoEncontrado && <> · <strong className="font-semibold text-tinta">{dados[p.id].marca.trim()}</strong></>}
@@ -55,6 +58,10 @@ export default function ListaPage() {
             </section>
           )
         })}
+
+        <Link to="/produtos" className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-suave">
+          <FiPackage aria-hidden /> Adicionar ou editar produtos
+        </Link>
       </div>
 
       <div className="sticky bottom-0 mt-3 border-t border-linha bg-white px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom))]">

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiArrowLeft, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
+import { FiArrowLeft, FiDownload, FiPackage, FiPlus, FiTrash2, FiX } from 'react-icons/fi'
 import Button from '../components/ui/Button.jsx'
 import Field, { inputClass } from '../components/ui/Field.jsx'
 import { useConfirm } from '../contexts/ConfirmContext.jsx'
+import { useInstall } from '../contexts/InstallContext.jsx'
 import { useColetaStore } from '../stores/useColetaStore.js'
 import { useNavStore } from '../stores/useNavStore.js'
 import { FIXOS, letraEstab, nomePadrao } from '../utils/estabs.js'
@@ -11,6 +12,7 @@ import { FIXOS, letraEstab, nomePadrao } from '../utils/estabs.js'
 export default function AjustesPage() {
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const { podeInstalar, pedirInstalacao } = useInstall()
   const estabs = useColetaStore((s) => s.estabs)
   const aplicarEstabs = useColetaStore((s) => s.aplicarEstabs)
   const apagarPrecos = useColetaStore((s) => s.apagarPrecos)
@@ -74,6 +76,8 @@ export default function AjustesPage() {
 
       <Button onClick={adicionar}><FiPlus aria-hidden /> Adicionar estabelecimento</Button>
       <Button variant="primario" className="py-3" onClick={salvar}>Salvar</Button>
+      <Button className="py-3" onClick={() => navigate('/produtos')}><FiPackage aria-hidden /> Produtos adicionais</Button>
+      {podeInstalar && <Button className="py-3" onClick={pedirInstalacao}><FiDownload aria-hidden /> Instalar app</Button>}
       <Button variant="perigo" className="py-3" onClick={apagar}><FiTrash2 aria-hidden /> Apagar todos os preços</Button>
     </div>
   )

@@ -1,10 +1,12 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
-import { BY_ID, ORDERED, SECTIONS } from '../data/products.js'
+import { ORDERED, SECTIONS } from '../data/products.js'
 import { TODOS, escopoDe, primeiroPendente } from '../utils/escopo.js'
+import { getCatalogo } from './catalogo.js'
 import { useColetaStore } from './useColetaStore.js'
 
 const dadosDe = (estab) => useColetaStore.getState().dados[estab] || {}
+const escopo = (secao) => escopoDe(secao, getCatalogo().ordered)
 
 // Onde a pessoa parou: estabelecimento, seção e produto atuais
 export const useNavStore = create(
@@ -20,13 +22,13 @@ export const useNavStore = create(
       reposicionarEstab: (estab) => set({ estab }),
 
       trocarEstab: (estab) =>
-        set((s) => ({ estab, pid: primeiroPendente(escopoDe(s.secao), dadosDe(estab)) })),
+        set((s) => ({ estab, pid: primeiroPendente(escopo(s.secao), dadosDe(estab)) })),
 
       trocarSecao: (secao) =>
-        set((s) => ({ secao, pid: primeiroPendente(escopoDe(secao), dadosDe(s.estab)) })),
+        set((s) => ({ secao, pid: primeiroPendente(escopo(secao), dadosDe(s.estab)) })),
 
       revisarPendentes: () =>
-        set((s) => ({ pid: primeiroPendente(escopoDe(s.secao), dadosDe(s.estab)) })),
+        set((s) => ({ pid: primeiroPendente(escopo(s.secao), dadosDe(s.estab)) })),
 
       // Se o produto está em outra seção, passa a percorrer a seção dele
       abrirProduto: (produto) =>
@@ -47,7 +49,7 @@ export const useNavStore = create(
           ...atual,
           estab: Number.isInteger(u.estab) && u.estab >= 0 && u.estab < useColetaStore.getState().estabs.length ? u.estab : atual.estab,
           secao: secaoOk ? u.secao : atual.secao,
-          pid: BY_ID.has(u.pid) ? u.pid : atual.pid,
+          pid: getCatalogo().byId.has(u.pid) ? u.pid : atual.pid,
         }
       },
     }
